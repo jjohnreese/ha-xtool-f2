@@ -286,6 +286,171 @@ Transient-event entities — fire once on edge transitions (rather than holding 
 | Error | `limit`, `laser_control`, `laser_module`, `tilt`, `moving`, `emergency_stop`, `temperature`, `gyro`, `laser_head_fault`, `z_axis_fault`, `u_axis_fault`, `conveyor_fault`, `board_fault`, `camera_fault`, `dongle_fault`, `udisk_fault`, `machine_lock_md_fault` | Error-state transitions. `tilt` / `moving` are D-series only; `emergency_stop` plus the `*_fault` and hardware-alarm types are V2 only (driven by per-subsystem `/.../alarm` pushes — `/emergency/status` on MetalFab and `/emergency_stop/status` on the F-series are both routed to `emergency_stop`) |
 | Fire warning | `triggered`, `cleared` | Flame-detector edge — separate entity so safety automations can target it directly. Source: `M340` push (S1), `ERROR_FIRE_WARNING` status edge (REST + D-series), or `state.alarm_present` / `/v1/device/alarms` / `/fire/alarm` push (WS-V2) |
 
+## Automation Examples
+
+### Wireless button: Start, Pause, Resume, and Repeat
+
+Use an Aqara Zigbee button—or another compatible wireless button—to control an xTool job:
+
+| Button action | Device status | Result |
+|---|---|---|
+| Single press | Processing | Pause the current job |
+| Single press | Paused | Resume the current job |
+| Single press | Idle, processing ready, or finished | Send Start / Resume |
+| Double press | Idle or finished | Repeat the last job |
+| Long press | Any | No action |
+| Single or double press | Any other status, including unknown or unavailable | No action |
+
+This example uses the machine’s reported status rather than remembering the last command sent. This allows it to remain synchronized when a job is paused or resumed through Home Assistant, xTool Studio, or the machine’s physical button, provided the integration receives accurate status updates.
+
+> [!WARNING]
+> Start, resume, and repeat actions can activate the laser. Only operate the button while supervising the machine, with the work area clear, material correctly positioned, and all required safety precautions in place. This automation is not an emergency stop and does not replace the machine’s safety controls.
+
+#### Requirements
+
+- An xTool device exposing:
+  - A **Status** sensor.
+  - A **Pause job** button.
+  - A **Start / Resume job** button.
+  - A **Repeat last job** button.
+- A wireless button paired through **Zigbee Home Automation (ZHA)**.
+- The example expects `single` and `double` commands in `zha_event` events.
+
+Entity availability and command names vary by device and integration version. This example targets the F2’s combined **Start / Resume job** control; devices with separate start and resume controls require different actions.
+
+For F2 WS-V2 devices, use an integration version that correctly decodes `P_PAUSE`, `WORK_PAUSED`, and the runtime `Work` / `workPause` state. Before using this automation, confirm that the Status sensor changes to `paused` when the machine is paused and returns to `processing` when resumed. If it stays at `processing`, update to a release containing the F2 pause-state fix.
+
+#### Find your wireless button’s events
+
+1. Open **Developer Tools → Events** in Home Assistant.
+2. Enter `zha_event` under **Listen to events**.
+3. Select **Start listening**.
+4. Single-press and double-press the wireless button.
+5. Note the `device_ieee` and `command` values.
+
+An Aqara button may produce events similar to:
+
+```yaml
+event_type: zha_event
+data:
+  device_ieee: "00:11:22:33:44:55:66:77"
+  command: single
+```
+
+For a double press:
+
+```yaml
+event_type: zha_event
+data:
+  device_ieee: "00:11:22:33:44:55:66:77"
+  command: double
+```
+
+These are events from the external Zigbee button, not the xTool integration’s physical-button event entity.
+
+#### Create the automation
+
+1. Open **Settings → Automations & scenes → Create automation**.
+2. Create a new, empty automation.
+3. Open its menu and select **Edit in YAML**.
+4. Paste the following YAML.
+5. Replace the example IEEE address in both triggers and all example entity IDs with your own.
+6. Save the automation.
+
+| Example value | Replace with |
+|---|---|
+| `00:11:22:33:44:55:66:77` | Your wireless button’s IEEE address |
+| `sensor.xtool_f2_status` | Your xTool Status sensor |
+| `button.xtool_f2_pause_job` | Your xTool Pause job button |
+| `button.xtool_f2_start_resume_job` | Your xTool Start / Resume job button |
+| `button.xtool_f2_repeat_last_job` | Your xTool Repeat last job button |
+
+Remember to replace the Status sensor ID inside the templates as well.
+
+```yaml
+alias: "xTool - Wireless button job control"
+description: "Single press starts, pauses, or resumes; double press repeats the last job."
+triggers:
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_ieee: "00:11:22:33:44:55:66:77"
+      command: single
+    id: "single"
+  - trigger: event
+    event_type: zha_event
+    event_data:
+      device_ieee: "00:11:22:33:44:55:66:77"
+      command: double
+    id: "double"
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: "single"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: sensor.xtool_f2_status
+                    state: "processing"
+                sequence:
+                  - action: button.press
+                    target:
+                      entity_id: button.xtool_f2_pause_job
+              - conditions:
+                  - condition: template
+                    value_template: >-
+                      {{ states('sensor.xtool_f2_status')
+                         in ['idle', 'processing_ready', 'paused', 'finished'] }}
+                sequence:
+                  - action: button.press
+                    target:
+                      entity_id: button.xtool_f2_start_resume_job
+      - conditions:
+          - condition: trigger
+            id: "double"
+          - condition: template
+            value_template: >-
+              {{ states('sensor.xtool_f2_status') in ['idle', 'finished'] }}
+        sequence:
+          - action: button.press
+            target:
+              entity_id: button.xtool_f2_repeat_last_job
+mode: single
+```
+
+#### Usage and limitations
+
+- Prepare and transfer the job using your normal xTool workflow. This automation does not upload files or select a new job.
+- **Single press** sends Pause while processing, or Start / Resume in the explicitly allowed states. Whether a job can start depends on the machine’s readiness and available job.
+- **Double press** requests Repeat last job only while idle or finished. It does not queue a repeat during processing or while paused.
+- **Long press** is intentionally unassigned.
+- Wait for the Status sensor to update before pressing again. Rapid presses can act on an older reported state.
+- `mode: single` prevents overlapping automation executions; it does not wait for the machine to complete a status transition.
+- No Toggle helper or other helper entity is required.
+- Do not use the automation editor’s **Run actions** button as a functional test: this automation chooses its action using the trigger ID. Test with the physical wireless button while safely supervising a prepared job.
+- If the button uses Zigbee2MQTT or another integration, replace the ZHA event triggers with that integration’s corresponding triggers.
+- If xTool Studio causes connection interruptions, status updates may be delayed. See [Using xTool studio alongside Home Assistant](#using-xtool-studio-alongside-home-assistant).
+
+#### Troubleshooting
+
+**A single press keeps sending Pause instead of resuming**
+
+Check the Status sensor while the machine is paused. It must report `paused`, not `processing`. On affected F2 WS-V2 versions, this requires the pause-state decoding fix; changing the automation alone will not correct the reported status.
+
+**Double press does nothing**
+
+Confirm that:
+- The button emits `command: double`.
+- The IEEE address matches the automation.
+- The machine reports `idle` or `finished`.
+- Your device exposes an available Repeat last job button and has a repeatable job.
+
+**No button presses trigger the automation**
+
+Listen for `zha_event` again and compare the actual `device_ieee` and command values with both triggers. Review the automation’s traces to check which branch was selected.
+
 ## Device Information
 
 The device page in Home Assistant shows:
