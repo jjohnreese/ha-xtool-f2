@@ -310,6 +310,7 @@ WSV2_MODE_MAP: dict[str, XtoolStatus] = {
     "P_ONLINE_READY_WORK":  XtoolStatus.PROCESSING_READY,
     "P_OFFLINE_READY_WORK": XtoolStatus.PROCESSING_READY,
     "P_WORKING":            XtoolStatus.PROCESSING,
+    "P_PAUSE":              XtoolStatus.PAUSED,
     "P_WORK_DONE":          XtoolStatus.FINISHED,
     "P_FINISH":             XtoolStatus.FINISHED,
     "P_MEASURE":            XtoolStatus.MEASURING,
@@ -1358,6 +1359,8 @@ class WSV2Protocol(XtoolProtocol):
                     self._maybe_emit_job_event(
                         "framing_started", task_id, None,
                     )
+            elif typ == "WORK_PAUSED" and info_str == "working":
+                self._latest["status"] = XtoolStatus.PAUSED
             elif typ == "WORK_FINISHED":
                 is_framing = info_str == "framing"
                 self._latest["status"] = (
@@ -1850,6 +1853,14 @@ class WSV2Protocol(XtoolProtocol):
             if isinstance(cur_mode, dict):
                 mode = str(cur_mode.get("mode") or "").upper()
                 mapped = WSV2_MODE_MAP.get(mode)
+                # F2 runtime responses distinguish job states by subMode.
+                if mode == "WORK":
+                    sub_mode = str(cur_mode.get("subMode") or "").lower()
+                    mapped = {
+                        "workready": XtoolStatus.PROCESSING_READY,
+                        "working": XtoolStatus.PROCESSING,
+                        "workpause": XtoolStatus.PAUSED,
+                    }.get(sub_mode, mapped)
                 if mapped is not None:
                     state.status = mapped
                     self._latest["status"] = mapped
