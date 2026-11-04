@@ -12,11 +12,14 @@ The original MIT license and upstream attribution are retained.
 2. Verify the actual model, firmware, idle/finished state and alarm status.
 3. Check that retained `tmp.xf` and `last.xf` have matching nonempty sizes
    and MD5 fingerprints, using file metadata without downloading the design.
+   Explicitly cancel each metadata transfer with a nonzero finish code to
+   release its device-wide channel before continuing.
 4. Recheck the state and send `PUT /v1/processing/upload/config` with
    `{"fileType":"xf","autoStart":0,"loopPrint":0}` once.
 5. Wait for `Work / workReady`; recheck the upload fingerprint and status.
 6. Send `PUT /v1/processing/state?action=start` exactly once, then close
-   the temporary connection. No run is queued and no command is retried.
+   the temporary connection. Closing alone does not release transfer channels;
+   each one was already cancelled. No run is queued and no command is retried.
 
 An overlap or another press within five seconds of the start request is
 refused. Missing/different cached jobs, busy/paused states, alarms,
@@ -42,7 +45,7 @@ repeat on job completion, startup or reconnect.
   backup. Home Assistant restarted, the xTool config entry loaded, and the
   separate Repeat last job entity appeared. No xTool errors were reported
   by Home Assistant's system log at the post-start check.
-- Python 3.12 compilation and all 15 repeat regression tests pass.
+- Python 3.12 compilation and all 19 repeat regression tests pass.
 - 2026-11-04: the owner pressed the new combined Repeat last job entity
   and confirmed that **the same job ran exactly once**. Home Assistant
   recorded the button press, a subsequent `started` event, processing,
@@ -52,6 +55,18 @@ repeat on job completion, startup or reconnect.
   firmware **40.56.024.00.ht3**, local Wi-Fi. This is one physical machine
   and one combined-button test. Busy/alarm/hash-mismatch/duplicate guards
   are covered by software tests; they have not been provoked on the laser.
+- A subsequent physical repeat exposed a channel leak in the initial
+  implementation: the firmware returned `code -1`, `channel is busy`.
+  Closing the instruction connection did not release the download channels.
+- 2.8.2 explicitly sends `PUT /v1/filetransfer/finish` with
+  `{"channel":<reserved channel>,"code":-1,"message":"metadata inspection complete"}`
+  after each successful metadata request, including validation failures.
+  The matching firmware routes a nonzero finish code to `cancel_transfer`.
+  Rejected/busy channels are never cancelled, since another client may own them.
+- 2026-11-04: nine consecutive metadata checks using the same three channels
+  over three fresh connections succeeded with cleanup; the fingerprints
+  stayed identical, the F2 stayed idle, and zero start commands were sent.
+  **Consecutive physical repeats on 2.8.2 remain pending.**
 
 ## Local checks
 

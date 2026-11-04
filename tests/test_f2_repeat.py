@@ -29,6 +29,8 @@ class FakeClient:
         self.ready_mode = state("Work", "workReady")
         self.closed = False
         self.wait = None
+        self.active_channels = set()
+        self.cleanup_error = False
 
     async def __aenter__(self):
         return self
@@ -45,11 +47,21 @@ class FakeClient:
         if path == repeat.RUNTIME:
             return self.ready_mode if self.prepared else self.runtime
         if path == repeat.FILE_METADATA:
+            channel = data["channel"]
+            if channel in self.active_channels:
+                raise repeat.RepeatJobError("channel is busy")
+            self.active_channels.add(channel)
             filename = data["filename"]
             digest = self.last_digest if filename == "last.xf" else self.digest
             if self.prepared and self.changed_digest is not None:
                 digest = self.changed_digest
             return {"filename": filename, "filetype": 1, "filesize": 4096, "digesttype": 1, "digestdata": digest}
+        if path == repeat.FILE_FINISH:
+            if self.cleanup_error:
+                raise repeat.RepeatJobError("metadata cleanup failed")
+            assert data["code"] == -1
+            self.active_channels.remove(data["channel"])
+            return {}
         if path == repeat.PREPARE:
             if self.prepare_error:
                 raise RuntimeError("rejected")
@@ -159,6 +171,32 @@ class F2RepeatTests(unittest.IsolatedAsyncioTestCase):
         self.client.wait.set()
         await first
         self.assertEqual(len(self.client.calls_to(repeat.START)), 1)
+
+    async def test_second_finished_job_reuses_cleaned_channels(self):
+        await self.control.run()
+        self.assertFalse(self.client.active_channels)
+        self.client.prepared = False  # The first job completed and became idle.
+        self.control._last_start -= 6
+        await self.control.run()
+        self.assertFalse(self.client.active_channels)
+        self.assertEqual(len(self.client.calls_to(repeat.START)), 2)
+        self.assertEqual(len(self.client.calls_to(repeat.FILE_FINISH)), 6)
+
+    async def test_invalid_metadata_still_releases_our_channel(self):
+        self.client.digest = ""
+        await self.rejected_without_start()
+        self.assertFalse(self.client.active_channels)
+
+    async def test_cleanup_failure_prevents_preparation(self):
+        self.client.cleanup_error = True
+        await self.rejected_without_start()
+        self.assertFalse(self.client.calls_to(repeat.PREPARE))
+
+    async def test_busy_channel_is_never_cancelled(self):
+        self.client.active_channels.add(210)
+        await self.rejected_without_start()
+        self.assertFalse(self.client.calls_to(repeat.FILE_FINISH))
+        self.assertEqual(self.client.active_channels, {210})
 
 
 if __name__ == "__main__":

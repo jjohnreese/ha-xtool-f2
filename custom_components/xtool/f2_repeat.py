@@ -20,6 +20,7 @@ SUPPORTED_FIRMWARE = frozenset({"40.56.024.00.ht3"})
 IDLE_MODES = frozenset({"P_IDLE", "P_FINISH", "P_WORK_DONE"})
 RUNTIME = "/v1/device/runtime-infos"
 FILE_METADATA = "/v1/filetransfer/download"
+FILE_FINISH = "/v1/filetransfer/finish"
 PREPARE = "/v1/processing/upload/config"
 START = "/v1/processing/state"
 
@@ -29,7 +30,7 @@ class RepeatJobError(RuntimeError):
 
 
 class F2RepeatClient:
-    """One instruction connection; closing it releases metadata channels.
+    """One instruction connection; metadata channels are explicitly cancelled.
 
     There is deliberately no reconnect/retry after a command was sent.
     The existing integration's codec and HA's device-TLS context are reused.
@@ -108,7 +109,9 @@ class F2RepeatClient:
                     if frame.get("transactionId") != self.transaction:
                         continue
                     if frame.get("code") != 0:
-                        raise RepeatJobError(f"F2 rejected {path}; no command was retried.")
+                        code = frame.get("code")
+                        message = str(frame.get("message", "unknown error"))[:160]
+                        raise RepeatJobError(f"F2 rejected {path} (code {code}: {message}); no command was retried.")
                     response = frame.get("data")
                     if not isinstance(response, dict):
                         raise RepeatJobError("Invalid response from the F2.")
@@ -147,10 +150,22 @@ class F2RepeatController:
         self._last_start = float("-inf")
 
     async def _metadata(self, client: Any, filename: str, channel: int) -> tuple[int, str]:
-        return _signature(await client.request(FILE_METADATA, "PUT", data={
+        metadata = await client.request(FILE_METADATA, "PUT", data={
             "filetype": 1, "filename": filename, "digesttype": 1,
             "channel": channel, "packetsize": 1024, "windowsize": 1024,
-        }), filename)
+        })
+        # A successful metadata request reserves a device-wide transfer channel.
+        # Closing the instruction connection DOES NOT release it. GS006's host
+        # service maps nonzero finish codes to cancel_transfer(channel), which
+        # releases the download without pretending its contents were received.
+        # Never cancel on a rejected download: that channel may belong to Studio.
+        try:
+            return _signature(metadata, filename)
+        finally:
+            await client.request(FILE_FINISH, "PUT", data={
+                "channel": channel, "code": -1,
+                "message": "metadata inspection complete",
+            })
 
     async def run(self, *, prepare_only: bool = False) -> None:
         """Re-arm the same cached job; prepare_only is for no-laser validation."""

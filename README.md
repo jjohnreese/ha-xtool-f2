@@ -7,6 +7,12 @@
 > [F2 repeat details and validation status](docs/F2-repeat-job.md).
 > Based on [thecodingdad/ha-xtool](https://github.com/thecodingdad/ha-xtool),
 > retaining the original MIT license and attribution.
+>
+> **2.8.2 candidate:** The initial 2.8.1 implementation left metadata transfer
+> channels occupied, so a subsequent repeat could fail with "channel is busy".
+> 2.8.2 explicitly cancels each metadata transfer. Nine consecutive read-only
+> device checks and 19 regression tests pass; consecutive physical repeats
+> with 2.8.2 still require owner verification. 2.8.1 is a prerelease.
 
 Home Assistant integration for xTool laser cutters, engravers, fiber-laser welders and inkjet / UV printers (S1, D1 family, F1 family, F2 family, M1 family, M2, P-family, MetalFab, Apparel Printer, O1 Omni, Retail Marker, …).
 
