@@ -18,5 +18,11 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     coordinator.register_platform_add("button", async_add_entities)
     entities: list[ButtonEntity] = list(coordinator.build_buttons())
+    if (coordinator.model.model_id == "F2"
+            and coordinator.model.protocol_version == "V2"
+            and not coordinator.model.is_read_only):
+        from .f2_repeat_button import F2RepeatJobButton
+
+        entities.append(F2RepeatJobButton(coordinator))
     entities.extend(coordinator.initial_accessory_entities("button"))
     async_add_entities(entities)

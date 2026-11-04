@@ -812,6 +812,9 @@
       "resume_job": {
         "name": "Start / Resume job"
       },
+      "repeat_last_job": {
+        "name": "Repeat last job"
+      },
       "cancel_job": {
         "name": "Cancel job"
       },

@@ -1,13 +1,13 @@
 {
   "domain": "xtool",
   "name": "xTool Laser",
-  "codeowners": ["@thecodingdad"],
+  "codeowners": ["@jjohnreese"],
   "config_flow": true,
-  "documentation": "https://github.com/thecodingdad/ha-xtool",
+  "documentation": "https://github.com/jjohnreese/ha-xtool-f2",
   "integration_type": "device",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/thecodingdad/ha-xtool/issues",
+  "issue_tracker": "https://github.com/jjohnreese/ha-xtool-f2/issues",
   "loggers": ["custom_components.xtool"],
   "requirements": [],
-  "version": "2.8.0"
+  "version": "2.8.1"
 }

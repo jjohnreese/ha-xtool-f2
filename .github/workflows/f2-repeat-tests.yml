@@ -1,0 +1,21 @@
+name: F2 repeat regression tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  f2-repeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'aiohttp>=3.9,<4'
+      - run: python -m unittest discover -s tests -p test_f2_repeat.py -v
+      - run: python -m compileall -q custom_components/xtool

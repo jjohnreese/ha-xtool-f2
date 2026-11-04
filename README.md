@@ -1,17 +1,25 @@
 # xTool Laser
 
+> **Regular F2 hardware tested:** This fork adds a separate **Repeat last job**
+> button for the regular F2 (GS006), firmware 40.56.024.00.ht3. On 2026-11-04,
+> its owner confirmed that one press repeated the same job exactly once through
+> Home Assistant 2026.10.4. This is one tested machine and firmware combination. See
+> [F2 repeat details and validation status](docs/F2-repeat-job.md).
+> Based on [thecodingdad/ha-xtool](https://github.com/thecodingdad/ha-xtool),
+> retaining the original MIT license and attribution.
+
 Home Assistant integration for xTool laser cutters, engravers, fiber-laser welders and inkjet / UV printers (S1, D1 family, F1 family, F2 family, M1 family, M2, P-family, MetalFab, Apparel Printer, O1 Omni, Retail Marker, …).
 
 This integration communicates directly with your xTool device over the local network using the reverse-engineered WebSocket and REST protocols. No cloud connection required.
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/v/release/thecodingdad/ha-xtool)](https://github.com/thecodingdad/ha-xtool/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/jjohnreese/ha-xtool-f2)](https://github.com/jjohnreese/ha-xtool-f2/releases)
 
 > [!IMPORTANT] 
 > **This is an independent community project and is not affiliated with or endorsed by xTool. The integration is provided as-is, without any warranty.** Operating a laser cutter, engraver or fiber-laser welder through Home Assistant carries real-world safety risks (fire, blindness, burns, electrical hazards) — automated control over a high-power laser is *your* responsibility. Use at your own risk; see the full [Disclaimer](#disclaimer) for details.
 
 > [!NOTE]
-> **The integration was developed and tested with an xTool S1.** Other protocols/models are supported based on reverse-engineering, but have not been tested with real hardware. Community feedback is welcome!
+> **Upstream was developed and tested with an xTool S1.** This fork additionally has the regular-F2 repeat test described above. Other protocols/models retain upstream's reverse-engineered support and are not covered by that F2 test.
 
 ## Features
 
@@ -52,18 +60,18 @@ O1 Omni (DT002) support is read-only for now: status, consumables, doors, enviro
 
 ### HACS (Recommended)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=thecodingdad&repository=ha-xtool&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jjohnreese&repository=ha-xtool-f2&category=integration)
 
 Or add manually:
 1. Open HACS in your Home Assistant instance
 2. Click the three dots in the top right corner and select **Custom repositories**
-3. Enter `https://github.com/thecodingdad/ha-xtool` and select **Integration** as the category
+3. Enter `https://github.com/jjohnreese/ha-xtool-f2` and select **Integration** as the category
 4. Click **Add**, then search for "xTool Laser" and download it
 5. Restart Home Assistant
 
 ### Manual Installation
 
-1. Download the latest release from [GitHub Releases](https://github.com/thecodingdad/ha-xtool/releases)
+1. Download the latest release from [GitHub Releases](https://github.com/jjohnreese/ha-xtool-f2/releases)
 2. Copy the `custom_components/xtool` folder to your Home Assistant `config/custom_components/` directory
 3. Restart Home Assistant
 
