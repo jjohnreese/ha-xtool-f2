@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/jjohnreese/ha-xtool-f2/issues",
   "loggers": ["custom_components.xtool"],
   "requirements": [],
-  "version": "2.8.2"
+  "version": "2.8.3"
 }

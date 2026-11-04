@@ -13,6 +13,10 @@
 > 2.8.2 explicitly cancels each metadata transfer. Nine consecutive read-only
 > device checks and 19 regression tests pass; consecutive physical repeats
 > with 2.8.2 still require owner verification. 2.8.1 is a prerelease.
+>
+> **2.8.3 candidate:** The F2 Status sensor now reports `paused` (from
+> `P_PAUSE`, `WORK_PAUSED`, and the runtime `workPause` sub-mode) and adds a
+> [wireless button automation example](#automation-examples).
 
 Home Assistant integration for xTool laser cutters, engravers, fiber-laser welders and inkjet / UV printers (S1, D1 family, F1 family, F2 family, M1 family, M2, P-family, MetalFab, Apparel Printer, O1 Omni, Retail Marker, …).
 
