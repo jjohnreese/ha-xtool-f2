@@ -19,6 +19,14 @@ Also see [repeat behavior](docs/F2-repeat-job.md),
 [new-release notes](docs/releases/2.9.0b1.md), and the
 [wireless button automation example](#automation-examples).
 
+The published `v2.9.0b1` package has also been installed through
+HACS/Marketplace: all 71 component files matched the release, Home
+Assistant restarted, the saved pairing reconnected automatically, and
+fan status reported an on/off value. There were no xTool startup errors.
+Enable **Include pre-releases** for this repository to track the named
+release rather than the default-branch commit. Physical repeat confirmations
+and the remaining alarm-test limits are described in the guide.
+
 Home Assistant integration for xTool laser cutters, engravers, fiber-laser welders and inkjet / UV printers (S1, D1 family, F1 family, F2 family, M1 family, M2, P-family, MetalFab, Apparel Printer, O1 Omni, Retail Marker, …).
 
 This integration communicates directly with your xTool device over the local network using the reverse-engineered WebSocket and REST protocols. No cloud connection required.

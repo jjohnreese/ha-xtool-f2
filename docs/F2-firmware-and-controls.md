@@ -29,7 +29,9 @@ when you need the preserved older-firmware build.
 3. Add custom repository `https://github.com/jjohnreese/ha-xtool-f2`,
    category **Integration**, if it is not already registered.
 4. Open **xTool Laser** and select the matching version from the table.
-   Enable beta/prerelease versions if needed to see `v2.9.0b1`.
+   Enable **Include pre-releases** for this repository. Both preserved
+   releases are prereleases. Otherwise the store may compare an installed
+   tag against a default-branch commit and offer the same code again.
 5. Download, then restart Home Assistant to load the changed Python code.
 6. Keep the existing xTool integration and device. Do not delete and re-add
    them; existing entity IDs and automation references should stay intact.
@@ -120,8 +122,18 @@ confirmed to run the same job once each, and both completions were recorded.
 
 The repeat/authentication path was tested as the local 2.8.4b1 candidate.
 v2.9.0b1 adds the fan-state mapping and removes unsupported sleep controls.
-The release notes distinguish the post-install checks from those earlier
-physical tests. Offline tests cover authentication, repeat safeguards, pause
+The published **v2.9.0b1** was subsequently installed through Marketplace,
+using the owner's repository rather than another manual file copy. All
+**71 component files** matched published commit `0b1e060`; Home Assistant
+restarted, the integration loaded without another pairing prompt, live
+firmware/status returned and the fan sensor reported an on/off value. The
+old Device sleep registry entry was disabled/hidden. The xTool startup log
+was clean, and Marketplace reported the installed release as current after
+enabling this repository's prerelease channel. A fresh physical repeat and
+fan-transition check on that final installation remains pending owner
+confirmation; the two physical repeat confirmations above preceded it.
+
+Offline tests cover authentication, repeat safeguards, pause
 mapping and the fan parser. No fire or other physical fault was induced;
 alarm-event reception has not been physically validated. Other models,
 firmware versions, job types and accessories were not comprehensively tested.
