@@ -19,7 +19,16 @@ class F2RepeatJobButton(XtoolEntity, ButtonEntity):
         self._set_unique_id("repeat_last_job")
         self._repeat = F2RepeatController(lambda: F2RepeatClient(
             coordinator.host, coordinator.hass.config.time_zone,
+            pairing_token=coordinator.protocol.pairing_token,
+            on_pairing_token=self._store_pairing_token,
         ))
+
+    def _store_pairing_token(self, token: str) -> None:
+        """Keep a repeat-session token rotation in sync with the main client."""
+        protocol = self.coordinator.protocol
+        protocol.pairing_token = token
+        if protocol.on_pairing_token is not None:
+            protocol.on_pairing_token(token)
 
     async def async_press(self) -> None:
         if not self.available:

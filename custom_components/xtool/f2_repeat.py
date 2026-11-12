@@ -1,7 +1,8 @@
 """Repeat the retained regular-F2 job using a short-lived Wi-Fi session.
 
-Only GS006 / 40.56.024.00.ht3 has been verified. This module never uploads
-a design, changes interlocks, enables auto-start, or queues another run.
+GS006 / 40.56.024.00.ht3 had an initial physical repeat test; two consecutive
+repeats were physically confirmed on 40.56.025.00.ht4. This module never
+uploads a design, changes interlocks, enables auto-start, or queues another run.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from typing import Any
 
 import aiohttp
 
-SUPPORTED_FIRMWARE = frozenset({"40.56.024.00.ht3"})
+SUPPORTED_FIRMWARE = frozenset({"40.56.024.00.ht3", "40.56.025.00.ht4"})
 IDLE_MODES = frozenset({"P_IDLE", "P_FINISH", "P_WORK_DONE"})
 RUNTIME = "/v1/device/runtime-infos"
 FILE_METADATA = "/v1/filetransfer/download"
@@ -36,9 +37,15 @@ class F2RepeatClient:
     The existing integration's codec and HA's device-TLS context are reused.
     """
 
-    def __init__(self, host: str, timezone: str) -> None:
+    def __init__(
+        self, host: str, timezone: str, *, pairing_token: str = "",
+        on_pairing_token: Callable[[str], None] | None = None,
+    ) -> None:
         self.host = host
         self.timezone = timezone
+        self.pairing_token = pairing_token
+        self.on_pairing_token = on_pairing_token
+        self._session_token = ""
         self.session: aiohttp.ClientSession | None = None
         self.ws: aiohttp.ClientWebSocketResponse | None = None
         self.transaction = 0
@@ -58,16 +65,28 @@ class F2RepeatClient:
                 autoping=True,
             )
             # Public guest-protocol constant, shared with xTool Studio.
-            await self.request("/v1/user/parity", data={
+            parity_data = {
                 "userID": "mk-guest", "userKey": "bWFrZWJsb2NrLXh0b29s",
                 "timezone": self.timezone,
-            })
+            }
+            if self.pairing_token:
+                parity_data["token"] = self.pairing_token
+            # A repeat never initiates button-confirmation pairing or retries.
+            # Pair the integration first using Home Assistant's reauth flow.
+            result = await self.request("/v1/user/parity", data=parity_data)
+            self._session_token = str(result.get("sessionToken") or "")
+            token = str(result.get("token") or "")
+            if token and token != self.pairing_token:
+                self.pairing_token = token
+                if self.on_pairing_token is not None:
+                    self.on_pairing_token(token)
             return self
         except BaseException:
             await self.__aexit__()
             raise
 
     async def __aexit__(self, *_args: Any) -> None:
+        self._session_token = ""
         try:
             if self.ws is not None:
                 await self.ws.close()
@@ -90,6 +109,8 @@ class F2RepeatClient:
             "timestamp": int(time.time() * 1000),
             "transactionId": self.transaction,
         }
+        if self._session_token:
+            payload["sessionToken"] = self._session_token
         async with asyncio.timeout(10):
             await self.ws.send_bytes(_encode_frame(
                 json.dumps(payload, separators=(",", ":")).encode()
@@ -110,7 +131,12 @@ class F2RepeatClient:
                         continue
                     if frame.get("code") != 0:
                         code = frame.get("code")
-                        message = str(frame.get("message", "unknown error"))[:160]
+                        if code in (403, 406):
+                            raise RepeatJobError(
+                                "F2 authentication is required. Reconfigure/pair the integration "
+                                "in Home Assistant before repeating; no command was retried."
+                            )
+                        message = str(frame.get("msg") or frame.get("message") or "unknown error")[:160]
                         raise RepeatJobError(f"F2 rejected {path} (code {code}: {message}); no command was retried.")
                     response = frame.get("data")
                     if not isinstance(response, dict):
@@ -176,7 +202,10 @@ class F2RepeatController:
                 identity = await client.request("/v1/device/machineInfo")
                 if (identity.get("deviceCode") != "GS006" or identity.get("firmware", {})
                         .get("package_version") not in SUPPORTED_FIRMWARE):
-                    raise RepeatJobError("Repeat is verified only for regular F2 (GS006), firmware 40.56.024.00.ht3.")
+                    raise RepeatJobError(
+                        "Repeat supports only regular F2 (GS006), firmware "
+                        + " or ".join(sorted(SUPPORTED_FIRMWARE)) + "."
+                    )
                 _check_idle(await client.request(RUNTIME))
                 signature = await self._metadata(client, "tmp.xf", 210)
                 if signature != await self._metadata(client, "last.xf", 211):

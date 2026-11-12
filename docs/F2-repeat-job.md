@@ -2,13 +2,21 @@
 
 This fork of [thecodingdad/ha-xtool](https://github.com/thecodingdad/ha-xtool)
 adds **Repeat last job** beside the existing Start / Resume button.
-Only the **regular F2, device code GS006, firmware 40.56.024.00.ht3** is
-enabled for this feature. F2 Ultra and F2 Ultra UV are different machines.
+Only the **regular F2, device code GS006** is enabled for this feature.
+Firmware **40.56.024.00.ht3** has the physical validation described below;
+**40.56.025.00.ht4** has two consecutive physical repeat confirmations
+from the owner on 2026-11-12, after pairing with the new protocol.
+See [firmware compatibility and controls](F2-firmware-and-controls.md) and
+[the ht4 investigation](F2-ht4-investigation.md).
+F2 Ultra and F2 Ultra UV are different machines.
 The original MIT license and upstream attribution are retained.
 
 ## What a press does
 
 1. Open a temporary local TLS WebSocket connection to the configured device.
+   Present the integration's saved pairing token if present, then use the
+   session token issued for this connection. Pairing is handled separately
+   through Home Assistant; pressing Repeat never waits for a pairing press.
 2. Verify the actual model, firmware, idle/finished state and alarm status.
 3. Check that retained `tmp.xf` and `last.xf` have matching nonempty sizes
    and MD5 fingerprints, using file metadata without downloading the design.
@@ -35,6 +43,21 @@ file, then uses the existing start command. There is no timer or automatic
 repeat on job completion, startup or reconnect.
 
 ## Validation status
+
+- 2026-11-12, regular F2 GS006, firmware **40.56.025.00.ht4**, Home
+  Assistant **2026.11.1**: the owner approved pairing. Live firmware and
+  status returned; Home Assistant recorded Start, Pause, Resume and Finish.
+- The owner confirmed **two consecutive Repeat presses each ran the same
+  job once**. Home Assistant recorded both starts and finishes. The second
+  press did not reproduce the former `channel is busy` failure.
+- This used the local 2.8.4b1 authentication candidate; 2.9.0b1 carries
+  the same repeat/authentication behavior plus exhaust-state reporting and
+  removal of the unsupported Device sleep control. Post-publication
+  Marketplace/HACS verification is tracked in the new-release notes.
+- Error/fire handling has not been tested by inducing a physical fault or
+  fire. No such test is required to make an event entity show a timestamp.
+
+### Earlier ht3 history
 
 - 2026-11-04: existing Start / Resume works, confirmed by the owner on a regular F2.
 - 2026-11-04: cached file metadata matched; preparation returned success
@@ -72,6 +95,7 @@ repeat on job completion, startup or reconnect.
 
 ```shell
 python -m unittest discover -s tests -p test_f2_repeat.py -v
+python -m unittest discover -s tests -p test_ws_v2_pairing.py -v
 python -m compileall -q custom_components/xtool
 ```
 
@@ -82,8 +106,10 @@ The upstream accessory tests require a Home Assistant Python environment.
 
 Back up the current `/config/custom_components/xtool` directory. Replace
 it with this fork's `custom_components/xtool`, then restart Home Assistant
-to load the Python changes. Keep the existing xTool config entry: no
-device deletion or pairing is needed. The new button is associated with
+to load the Python changes. Keep the existing xTool config entry; no
+device deletion is needed. Newer firmware can require pairing through the
+integration's reauthentication/reconfiguration flow. Do this only when the
+machine is idle and attended. The new button is associated with
 the same device; its unique-ID suffix is `repeat_last_job`.
 
 For rollback, restore the directory backup and restart Home Assistant.

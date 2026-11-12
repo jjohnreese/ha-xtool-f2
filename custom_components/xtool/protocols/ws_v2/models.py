@@ -140,6 +140,8 @@ XTOOL_F2_WSV2 = XtoolDeviceModel(
     has_flame_alarm=True,
     has_move_stop=True,
     has_smoking_fan=True,
+    # GS006 Studio's addonStatus reads the exhaust socket via ext_purifier.
+    smoking_fan_uses_ext_purifier=True,
     has_machine_lock=True,
     has_mode_switch=True,
     has_air_assist_state=True,
@@ -148,7 +150,7 @@ XTOOL_F2_WSV2 = XtoolDeviceModel(
     has_fill_light_dual=True,  # GS006 bundle ships front + back channels
     # GS006 uses linear fill-light transform (O7 = device/255*100),
     # not the Q7 offset — keep ``fill_light_device_min`` at 0.
-    has_device_sleep=True,  # autoSleepEnable in DEVICE_CONFIG push
+    # GS006 does not expose autoSleepEnable; ht4 rejects both writes.
     firmware_content_id="xTool-f2-firmware",
     firmware_machine_type="MXF",
     protocol_version="V2",

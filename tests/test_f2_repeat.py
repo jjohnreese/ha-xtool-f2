@@ -103,6 +103,18 @@ class F2RepeatTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.client.calls_to(repeat.PREPARE)), 1)
         self.assertFalse(self.client.calls_to(repeat.START))
 
+    async def test_ht4_candidate_preserves_single_start_and_releases_channels(self):
+        self.client.identity["firmware"]["package_version"] = "40.56.025.00.ht4"
+        await self.control.run()
+        self.assertEqual(len(self.client.calls_to(repeat.START)), 1)
+        self.assertFalse(self.client.active_channels)
+
+    async def test_ht4_candidate_still_refuses_working_job(self):
+        self.client.identity["firmware"]["package_version"] = "40.56.025.00.ht4"
+        self.client.runtime = state("Work", "working")
+        await self.rejected_without_start()
+        self.assertFalse(self.client.calls_to(repeat.PREPARE))
+
     async def test_busy_paused_ready_sleep_and_unknown_are_refused(self):
         for mode in ["P_WORKING", "P_PAUSE", "P_READY", "P_SLEEP", "Work", "unknown"]:
             with self.subTest(mode=mode):

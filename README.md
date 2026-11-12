@@ -1,22 +1,23 @@
 # xTool Laser
 
-> **Regular F2 hardware tested:** This fork adds a separate **Repeat last job**
-> button for the regular F2 (GS006), firmware 40.56.024.00.ht3. On 2026-11-04,
-> its owner confirmed that one press repeated the same job exactly once through
-> Home Assistant 2026.10.4. This is one tested machine and firmware combination. See
-> [F2 repeat details and validation status](docs/F2-repeat-job.md).
-> Based on [thecodingdad/ha-xtool](https://github.com/thecodingdad/ha-xtool),
-> retaining the original MIT license and attribution.
->
-> **2.8.2 candidate:** The initial 2.8.1 implementation left metadata transfer
-> channels occupied, so a subsequent repeat could fail with "channel is busy".
-> 2.8.2 explicitly cancels each metadata transfer. Nine consecutive read-only
-> device checks and 19 regression tests pass; consecutive physical repeats
-> with 2.8.2 still require owner verification. 2.8.1 is a prerelease.
->
-> **2.8.3 candidate:** The F2 Status sensor now reports `paused` (from
-> `P_PAUSE`, `WORK_PAUSED`, and the runtime `workPause` sub-mode) and adds a
-> [wireless button automation example](#automation-examples).
+This fork adds **Repeat last job** for the **regular F2 (GS006)** over Wi-Fi.
+It is based on [thecodingdad/ha-xtool](https://github.com/thecodingdad/ha-xtool),
+retaining the original MIT license and attribution.
+
+| F2 firmware package | Release | Status |
+|---|---|---|
+| `40.56.024.00.ht3` | [v2.8.3 legacy](https://github.com/jjohnreese/ha-xtool-f2/releases/tag/v2.8.3) | Preserved older-firmware build; see its original validation limits |
+| `40.56.025.00.ht4` | [v2.9.0b1](https://github.com/jjohnreese/ha-xtool-f2/releases/tag/v2.9.0b1) | New pairing/session-token support; two consecutive same-job repeats physically confirmed on one F2 |
+
+The ht4 catalog version is `40.56.025.04`; this is the same firmware package,
+not an extra machine update. Older releases remain available. Other firmware
+versions and F2 Ultra/UV models are outside this fork's regular-F2 test scope.
+
+**Start here:** [firmware compatibility, installation, pairing, controls,
+troubleshooting, validation and rollback](docs/F2-firmware-and-controls.md).
+Also see [repeat behavior](docs/F2-repeat-job.md),
+[new-release notes](docs/releases/2.9.0b1.md), and the
+[wireless button automation example](#automation-examples).
 
 Home Assistant integration for xTool laser cutters, engravers, fiber-laser welders and inkjet / UV printers (S1, D1 family, F1 family, F2 family, M1 family, M2, P-family, MetalFab, Apparel Printer, O1 Omni, Retail Marker, …).
 
@@ -94,6 +95,14 @@ Or add manually:
 3. The integration scans your network for xTool devices via UDP broadcast
 4. Select a discovered device from the list, or choose **Enter IP address manually**
 5. Confirm to add the device
+
+### Pairing (newer V2 firmware)
+
+Some V2 firmware (first seen on the M2 with `40.141.012.01.ht05`) only accepts paired clients. When the device asks for it, setup shows a pairing step: click **Submit**, then press the button on the device to confirm. The device hands out a token that the integration stores and presents on every later connection.
+
+If the device rejects the stored token later (e.g. after a reset), Home Assistant shows **Re-authentication required** for the integration. Open it and press the button on the device again. Your device, entities and history stay as they are.
+
+To change the IP address or pair again at any time, use **Reconfigure** on the integration entry.
 
 ### Options
 
@@ -211,7 +220,7 @@ Connected BT accessories surface as their own **child devices** hanging off the 
 | Flame alarm | Flame-alarm config toggle (single on/off — no separate sensitivity Select). **Warning (per xTool Studio):** disabling this switch means no flame alarm will be triggered. Fires may cause serious injuries and property damage. Disabled in the entity registry by default — enable explicitly if you need programmatic control |
 | Stops when enclosure opened | Cover-safety enforcement — pauses the job when the lid opens mid-run |
 | Stops when moved | V2 only. Engages when the device is moved mid-job (backed by the `workingMode` enum: `HANDLE` = on, `NORMAL` = off) |
-| Device sleep | V2 only (F1 / F2 family). Toggles `autoSleepEnable` so the device powers down on idle. **Note (per xTool Studio):** if the device doesn't enter sleep mode, heat may affect performance — it is recommended to keep the sleep feature enabled |
+| Device sleep | Models exposing `autoSleepEnable` only. Not offered on regular F2 GS006: ht4 rejects both on/off writes. Its removal does not change the machine's firmware settings. |
 
 ### Number
 

@@ -92,6 +92,8 @@ class ConnectionInfo:
     # candidate that won the V1/V2 selection). Persisted to entry data so
     # ``async_setup_entry`` re-resolves the exact entry on every reload.
     model_id: str = ""
+    # WS-V2 pairing token the device issued (empty when it needs none).
+    pairing_token: str = ""
 
 
 @dataclass
@@ -124,6 +126,7 @@ class XtoolDeviceModel:
     has_flame_alarm: bool = False
     has_air_assist_state: bool = False  # REST: poll /peripheral/airassist for connect state
     has_smoking_fan: bool = False
+    smoking_fan_uses_ext_purifier: bool = False
     has_fill_light: bool = False
     has_fill_light_dual: bool = False  # F-family V2: separate Front + Back channels
     # Some V2 firmwares only drive the fill-light LED array above a
